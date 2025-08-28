@@ -141,5 +141,7 @@ dist
 .svelte-kit
 
 # End of https://www.toptal.com/developers/gitignore/api/node
-Ask AI
+
+# Uploads directory
+uploads/
 

@@ -1,148 +1,85 @@
-const { validationResult } = require('express-validator');
-const Product = require('../models/Product');
+const ProductService = require('../services/ProductService');
+const { asyncHandler } = require('../utils/errors');
 
-const createProduct = async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
+// Add new product (merchant only)
+const addProduct = asyncHandler(async (req, res) => {
+  const productData = req.body;
+  const product = await ProductService.addProduct(productData, req.user._id);
 
-    const { name, description, price, category, stock, images } = req.body;
-    
-    const product = await Product.create({
-      name,
-      description,
-      price,
-      category,
-      stock,
-      images: images || [],
-      merchant: req.user._id,
-    });
+  res.status(201).json({
+    success: true,
+    message: 'Product added successfully',
+    product,
+  });
+});
 
-    await product.populate('merchant', 'name email');
+// Edit product (owner merchant only)
+const editProduct = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const updateData = req.body;
+  const updatedProduct = await ProductService.editProduct(
+    id,
+    updateData,
+    req.user._id
+  );
 
-    res.status(201).json({
-      message: 'Product created successfully',
-      product,
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
+  res.json({
+    success: true,
+    message: 'Product updated successfully',
+    product: updatedProduct,
+  });
+});
 
-const getProducts = async (req, res) => {
-  try {
-    const { page = 1, limit = 10, category, search } = req.query;
-    const query = { isActive: true };
+// Delete product (owner merchant only)
+const deleteProduct = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  await ProductService.deleteProduct(id, req.user._id);
 
-    if (category) query.category = category;
-    if (search) query.$text = { $search: search };
+  res.json({
+    success: true,
+    message: 'Product deleted successfully',
+  });
+});
 
-    const products = await Product.find(query)
-      .populate('merchant', 'name email')
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .sort({ createdAt: -1 });
+// Get all products with advanced filtering, search, and sorting
+const getAllProducts = asyncHandler(async (req, res) => {
+  const result = await ProductService.getAllProducts(req.query);
 
-    const total = await Product.countDocuments(query);
+  res.json({
+    success: true,
+    ...result,
+  });
+});
 
-    res.json({
-      products,
-      totalPages: Math.ceil(total / limit),
-      currentPage: page,
-      total,
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
+// Get product by ID (public)
+const getProductById = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const product = await ProductService.getProductById(id);
 
-const getProduct = async (req, res) => {
-  try {
-    const product = await Product.findOne({ _id: req.params.id, isActive: true })
-      .populate('merchant', 'name email');
+  res.json({
+    success: true,
+    product,
+  });
+});
 
-    if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
-    }
+// Get products by merchant (for merchant dashboard)
+const getMerchantProducts = asyncHandler(async (req, res) => {
+  const result = await ProductService.getMerchantProducts(
+    req.user._id,
+    req.query
+  );
 
-    res.json({ product });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
-
-const updateProduct = async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const product = await Product.findOne({ _id: req.params.id, merchant: req.user._id });
-    if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
-    }
-
-    const { name, description, price, category, stock, images } = req.body;
-    
-    Object.assign(product, { name, description, price, category, stock, images });
-    await product.save();
-    await product.populate('merchant', 'name email');
-
-    res.json({
-      message: 'Product updated successfully',
-      product,
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
-
-const deleteProduct = async (req, res) => {
-  try {
-    const product = await Product.findOne({ _id: req.params.id, merchant: req.user._id });
-    if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
-    }
-
-    product.isActive = false;
-    await product.save();
-
-    res.json({ message: 'Product deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
-
-const getMerchantProducts = async (req, res) => {
-  try {
-    const { page = 1, limit = 10 } = req.query;
-    
-    const products = await Product.find({ merchant: req.user._id })
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .sort({ createdAt: -1 });
-
-    const total = await Product.countDocuments({ merchant: req.user._id });
-
-    res.json({
-      products,
-      totalPages: Math.ceil(total / limit),
-      currentPage: page,
-      total,
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
+  res.json({
+    success: true,
+    ...result,
+  });
+});
 
 module.exports = {
-  createProduct,
-  getProducts,
-  getProduct,
-  updateProduct,
+  addProduct,
+  editProduct,
   deleteProduct,
+  getAllProducts,
+  getProductById,
   getMerchantProducts,
 };
