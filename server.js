@@ -22,7 +22,11 @@ app.use(limiter);
 app.use(morgan('combined'));
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: process.env.CORS_ORIGIN || [
+      'http://localhost:3000',
+      'https://e-com-frontend-iqfe.onrender.com',
+    ],
+    credentials: true,
   })
 );
 app.use(express.json({ limit: '10mb' }));
