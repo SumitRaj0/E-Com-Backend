@@ -23,8 +23,8 @@ app.use(morgan('combined'));
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN || [
-      'http://localhost:3000',
       'https://e-com-frontend-iqfe.onrender.com',
+      'http://localhost:3000',
     ],
     credentials: true,
   })
@@ -45,6 +45,12 @@ app.get('/health', (req, res) => {
     success: true,
     status: 'ok',
     timestamp: new Date().toISOString(),
+    cors: {
+      origin: process.env.CORS_ORIGIN || [
+        'https://e-com-frontend-iqfe.onrender.com',
+        'http://localhost:3000',
+      ],
+    },
   });
 });
 
